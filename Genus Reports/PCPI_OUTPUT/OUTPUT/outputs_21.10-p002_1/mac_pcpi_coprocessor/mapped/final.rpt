@@ -1,0 +1,51 @@
+
+
+Working Directory = /home/redhatacademy19/Documents/Satyam_SRIP/PCPI RUN
+QoS Summary for mac_pcpi_coprocessor
+================================================================================
+Metric                          generic         mapped         
+================================================================================
+Slack (ps):                      -555            -233
+  R2R (ps):                      -555            -233
+  I2R (ps):                     1,657           1,501
+  R2O (ps):                     1,739           1,734
+  I2O (ps):                  no_value        no_value
+  CG  (ps):                  no_value        no_value
+TNS (ps):                     -17,312          -7,259
+  R2R (ps):                   -17,312          -7,259
+  I2R (ps):                         0               0
+  R2O (ps):                         0               0
+  I2O (ps):                  no_value        no_value
+  CG  (ps):                  no_value        no_value
+Failing Paths:                     32              32
+Cell Area:                     46,629          29,476
+Total Cell Area:               46,629          29,476
+Leaf Instances:                16,973           9,358
+Total Instances:               16,973           9,358
+Utilization (%):                 0.00            0.00
+Tot. Net Length (um):        no_value        no_value
+Avg. Net Length (um):        no_value        no_value
+Route Overflow H (%):        no_value        no_value
+Route Overflow V (%):        no_value        no_value
+MBCI(%) (bits/gate) :            0.00            0.00
+Norm Cong Hotspot Area:
+  Max Cong:                  no_value        no_value
+  Tot Cong:                  no_value        no_value
+================================================================================
+CPU  Runtime (h:m:s):        00:34:52        00:31:54
+Real Runtime (h:m:s):        00:35:15        00:31:18
+CPU  Elapsed (h:m:s):        00:34:54        00:36:48
+Real Elapsed (h:m:s):        00:35:16        00:36:34
+Memory (MB):                  1887.83         1945.57
+================================================================================
+================================================================================
+Flow Settings:
+================================================================================
+Total Runtime (h:m:s): 00:36:33
+Total Memory (MB):     1953.57
+Executable Version:    21.10-p002_1
+================================================================================
+Total Cell Area =  Cell Area + Physical Cell Area
+Total Instances =  Leaf Instances + Physical Instances
+
+

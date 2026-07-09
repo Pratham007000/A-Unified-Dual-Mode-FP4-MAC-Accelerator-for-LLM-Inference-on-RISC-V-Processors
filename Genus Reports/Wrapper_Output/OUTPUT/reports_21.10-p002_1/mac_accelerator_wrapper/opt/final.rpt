@@ -1,0 +1,51 @@
+
+
+Working Directory = /home/redhatacademy19/Documents/Satyam_SRIP/Wrapper RUN
+QoS Summary for mac_accelerator_wrapper
+================================================================================
+Metric                          generic         mapped          opt            
+================================================================================
+Slack (ps):                      -575            -231             -70
+  R2R (ps):                      -575            -231             -70
+  I2R (ps):                     1,708           1,543           1,542
+  R2O (ps):                     1,677           1,571           1,519
+  I2O (ps):                     1,483           1,283           1,270
+  CG  (ps):                  no_value        no_value        no_value
+TNS (ps):                     -17,587          -7,122          -2,171
+  R2R (ps):                   -17,587          -7,122          -2,171
+  I2R (ps):                         0               0               0
+  R2O (ps):                         0               0               0
+  I2O (ps):                         0               0               0
+  CG  (ps):                  no_value        no_value        no_value
+Failing Paths:                     32              32              32
+Cell Area:                     46,956          28,534          32,421
+Total Cell Area:               46,956          28,534          32,421
+Leaf Instances:                17,176           9,300           9,997
+Total Instances:               17,176           9,300           9,997
+Utilization (%):                 0.00            0.00            0.00
+Tot. Net Length (um):        no_value        no_value        no_value
+Avg. Net Length (um):        no_value        no_value        no_value
+Route Overflow H (%):        no_value        no_value        no_value
+Route Overflow V (%):        no_value        no_value        no_value
+MBCI(%) (bits/gate) :            0.00            0.00            0.00
+Norm Cong Hotspot Area:
+  Max Cong:                  no_value        no_value        no_value
+  Tot Cong:                  no_value        no_value        no_value
+================================================================================
+CPU  Runtime (h:m:s):        00:34:48        00:31:54        00:39:32
+Real Runtime (h:m:s):        00:35:09        00:31:20        00:39:28
+CPU  Elapsed (h:m:s):        00:34:50        00:36:44        00:46:16
+Real Elapsed (h:m:s):        00:35:09        00:36:29        00:45:57
+Memory (MB):                  1883.66         1938.96         1895.95
+================================================================================
+================================================================================
+Flow Settings:
+================================================================================
+Total Runtime (h:m:s): 00:45:59
+Total Memory (MB):     1895.95
+Executable Version:    21.10-p002_1
+================================================================================
+Total Cell Area =  Cell Area + Physical Cell Area
+Total Instances =  Leaf Instances + Physical Instances
+
+

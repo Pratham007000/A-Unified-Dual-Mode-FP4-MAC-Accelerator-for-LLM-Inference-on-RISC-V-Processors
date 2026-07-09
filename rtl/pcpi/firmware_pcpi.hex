@@ -1,0 +1,26 @@
+// Hand-assembled firmware for PicoRV32 PCPI MAC test
+// Equivalent to firmware_pcpi.c — no compiler needed
+//
+// TEST 1: MXFP4 — packed=0xA3, scale_a=127, b0=0.5, b1=0.0 → expect 0.75
+// TEST 2: NVFP4 — packed=0x32, scale_b=0x38, ts=1.0, b0=2.0, b1=1.0 → expect 3.5
+
+@00000000
+100007B7  // lui   a5, 0x10000       | a5 = 0x10000000 (PRINT_PORT)
+20000837  // lui   a6, 0x20000       | a6 = 0x20000000 (FINISH_PORT)
+00010537  // lui   a0, 0x10          | a0 = 0x00010000
+F4650513  // addi  a0, a0, -186      | a0 = 0x0000FF46 (MXFP4 cfg_word)
+3F8005B7  // lui   a1, 0x3F800       | a1 = 0x3F800000 (tensor_scale=1.0)
+00B5000B  // QMAC_CFG x0, a0, a1    | configure MAC: MXFP4 mode
+3F000637  // lui   a2, 0x3F000       | a2 = 0x3F000000 (b0=0.5)
+00000693  // addi  a3, x0, 0         | a3 = 0x00000000 (b1=0.0)
+00D6170B  // QMAC_EXEC a4, a2, a3   | execute MAC → result in a4
+00E7A023  // sw    a4, 0(a5)         | print MXFP4 result
+00700537  // lui   a0, 0x700         | a0 = 0x00700000
+06550513  // addi  a0, a0, 101       | a0 = 0x00700065 (NVFP4 cfg_word)
+00B5000B  // QMAC_CFG x0, a0, a1    | configure MAC: NVFP4 mode
+40000637  // lui   a2, 0x40000       | a2 = 0x40000000 (b0=2.0)
+00058693  // addi  a3, a1, 0         | a3 = 0x3F800000 (b1=1.0)
+00D6170B  // QMAC_EXEC a4, a2, a3   | execute MAC → result in a4
+00E7A023  // sw    a4, 0(a5)         | print NVFP4 result
+00A82023  // sw    a0, 0(a6)         | signal FINISH
+0000006F  // j     self              | halt (infinite loop)

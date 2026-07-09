@@ -1,0 +1,51 @@
+
+
+Working Directory = /home/redhatacademy19/Documents/Satyam_SRIP/RUN
+QoS Summary for mxfp4_mac_top
+================================================================================
+Metric                          generic         mapped         
+================================================================================
+Slack (ps):                      -234               1
+  R2R (ps):                     1,297           1,178
+  I2R (ps):                      -234               1
+  R2O (ps):                     1,734           1,705
+  I2O (ps):                  no_value        no_value
+  CG  (ps):                  no_value        no_value
+TNS (ps):                      -7,320               0
+  R2R (ps):                         0               0
+  I2R (ps):                    -7,320               0
+  R2O (ps):                         0               0
+  I2O (ps):                  no_value        no_value
+  CG  (ps):                  no_value        no_value
+Failing Paths:                     32               0
+Cell Area:                     23,277          14,736
+Total Cell Area:               23,277          14,736
+Leaf Instances:                 8,625           5,074
+Total Instances:                8,625           5,074
+Utilization (%):                 0.00            0.00
+Tot. Net Length (um):        no_value        no_value
+Avg. Net Length (um):        no_value        no_value
+Route Overflow H (%):        no_value        no_value
+Route Overflow V (%):        no_value        no_value
+MBCI(%) (bits/gate) :            0.00            0.00
+Norm Cong Hotspot Area:
+  Max Cong:                  no_value        no_value
+  Tot Cong:                  no_value        no_value
+================================================================================
+CPU  Runtime (h:m:s):        00:35:12        00:31:07
+Real Runtime (h:m:s):        00:36:08        00:30:48
+CPU  Elapsed (h:m:s):        00:35:14        00:36:21
+Real Elapsed (h:m:s):        00:36:09        00:36:57
+Memory (MB):                  1869.94         1918.20
+================================================================================
+================================================================================
+Flow Settings:
+================================================================================
+Total Runtime (h:m:s): 00:36:57
+Total Memory (MB):     1926.21
+Executable Version:    21.10-p002_1
+================================================================================
+Total Cell Area =  Cell Area + Physical Cell Area
+Total Instances =  Leaf Instances + Physical Instances
+
+

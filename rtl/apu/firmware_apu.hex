@@ -1,0 +1,80 @@
+// Firmware for CV32E40P (RI5CY) APU MAC test
+// Uses OPCODE_OP_FP (0x53) to route instructions through APU interface
+//
+// fadd.s encoding: [31:27]=funct5 [26:25]=fmt [24:20]=rs2 [19:15]=rs1 [14:12]=rm [11:7]=rd [6:0]=1010011
+//
+// We use funct5 to distinguish operations:
+//   funct5=00000 (fadd.s) → QMAC_CFG:  apu_op will have fpu_op=ADD, we treat as CFG
+//   funct5=00010 (fmul.s) → QMAC_EXEC: apu_op will have fpu_op=MUL, we treat as EXEC
+//
+// apu_op encoding by decoder: {fpu_vec_op[1], fpu_op_mod[1], fpu_op[4]} = 6 bits
+//   fadd.s → apu_op = 6'b00_0000 = 0  → CFG
+//   fmul.s → apu_op = 6'b00_0010 = 2  → EXEC
+//
+// TEST 1: MXFP4 mode — expect 0x3F400000 (0.75)
+// TEST 2: NVFP4 mode — expect 0x40600000 (3.5)
+//
+// Memory layout:
+// 0x00: program start
+// Registers used:
+//   x10(a0): cfg_word    x11(a1): tensor_scale
+//   x12(a2): b0          x13(a3): b1
+//   x14(a4): result      x15(a5): PRINT_PORT
+//   x16(a6): FINISH_PORT
+
+@00000000
+// Setup print and finish ports
+100007B7  // lui   a5, 0x10000       | a5 = 0x10000000 (PRINT_PORT)
+20000837  // lui   a6, 0x20000       | a6 = 0x20000000 (FINISH_PORT)
+
+// TEST 1: MXFP4 — packed=0xA3, scale_a=127(0x7F), mode=0
+// cfg_word = 0 | (0xA3 << 1) | (0x7F << 9) | (0 << 17) = 0x0000FF46
+00010537  // lui   a0, 0x10          | a0 = 0x00010000
+F4650513  // addi  a0, a0, -186      | a0 = 0x0000FF46
+
+// tensor_scale = 1.0 = 0x3F800000
+3F8005B7  // lui   a1, 0x3F800       | a1 = 0x3F800000
+
+// QMAC_CFG: fadd.s x0, a0, a1 → opcode=0x53, funct5=00000, fmt=00
+// Encoding: 0000000 01011 01010 000 00000 1010011
+// [31:27]=00000 [26:25]=00 [24:20]=01011(a1) [19:15]=01010(a0) [14:12]=000 [11:7]=00000(x0) [6:0]=1010011
+00B50053  // fadd.s x0, a0, a1      | QMAC_CFG (routed to APU, apu_op=0)
+
+// b0 = 0.5 = 0x3F000000
+3F000637  // lui   a2, 0x3F000       | a2 = 0x3F000000
+
+// b1 = 0.0
+00000693  // addi  a3, x0, 0         | a3 = 0x00000000
+
+// QMAC_EXEC: fmul.s a4, a2, a3 → opcode=0x53, funct5=00010, fmt=00
+// [31:27]=00010 [26:25]=00 [24:20]=01101(a3) [19:15]=01100(a2) [14:12]=000 [11:7]=01110(a4) [6:0]=1010011
+10D60753  // fmul.s a4, a2, a3      | QMAC_EXEC (routed to APU, apu_op=2)
+
+// Print MXFP4 result
+00E7A023  // sw    a4, 0(a5)         | print result
+
+// TEST 2: NVFP4 — packed=0x32, scale_b=0x38, mode=1
+// cfg_word = 1 | (0x32 << 1) | (0 << 9) | (0x38 << 17) = 0x00700065
+00700537  // lui   a0, 0x700         | a0 = 0x00700000
+06550513  // addi  a0, a0, 101       | a0 = 0x00700065
+
+// QMAC_CFG again
+00B50053  // fadd.s x0, a0, a1      | QMAC_CFG (NVFP4 mode)
+
+// b0 = 2.0 = 0x40000000
+40000637  // lui   a2, 0x40000       | a2 = 0x40000000
+
+// b1 = 1.0 = 0x3F800000
+00058693  // addi  a3, a1, 0         | a3 = 0x3F800000
+
+// QMAC_EXEC again
+10D60753  // fmul.s a4, a2, a3      | QMAC_EXEC (NVFP4 mode)
+
+// Print NVFP4 result
+00E7A023  // sw    a4, 0(a5)         | print result
+
+// Signal finish
+00A82023  // sw    a0, 0(a6)         | FINISH
+
+// Halt
+0000006F  // j     self              | infinite loop

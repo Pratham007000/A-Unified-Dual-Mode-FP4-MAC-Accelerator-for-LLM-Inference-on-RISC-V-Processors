@@ -1,0 +1,51 @@
+
+
+Working Directory = /home/redhatacademy19/Documents/Satyam_SRIP/NVFP4_RUN
+QoS Summary for nvfp4_mac_top
+================================================================================
+Metric                          generic         mapped          opt            
+================================================================================
+Slack (ps):                      -747            -362            -236
+  R2R (ps):                     1,297           1,278           1,312
+  I2R (ps):                      -747            -362            -236
+  R2O (ps):                     1,733           1,693           1,670
+  I2O (ps):                  no_value        no_value        no_value
+  CG  (ps):                  no_value        no_value        no_value
+TNS (ps):                     -23,419         -11,483          -7,478
+  R2R (ps):                         0               0               0
+  I2R (ps):                   -23,419         -11,483          -7,478
+  R2O (ps):                         0               0               0
+  I2O (ps):                  no_value        no_value        no_value
+  CG  (ps):                  no_value        no_value        no_value
+Failing Paths:                     32              32              32
+Cell Area:                     44,997          27,225          31,041
+Total Cell Area:               44,997          27,225          31,041
+Leaf Instances:                16,758           9,099           9,757
+Total Instances:               16,758           9,099           9,757
+Utilization (%):                 0.00            0.00            0.00
+Tot. Net Length (um):        no_value        no_value        no_value
+Avg. Net Length (um):        no_value        no_value        no_value
+Route Overflow H (%):        no_value        no_value        no_value
+Route Overflow V (%):        no_value        no_value        no_value
+MBCI(%) (bits/gate) :            0.00            0.00            0.00
+Norm Cong Hotspot Area:
+  Max Cong:                  no_value        no_value        no_value
+  Tot Cong:                  no_value        no_value        no_value
+================================================================================
+CPU  Runtime (h:m:s):        00:38:22        00:31:59        00:38:54
+Real Runtime (h:m:s):        00:38:44        00:31:22        00:38:51
+CPU  Elapsed (h:m:s):        00:38:25        00:40:23        00:49:17
+Real Elapsed (h:m:s):        00:38:45        00:40:07        00:48:58
+Memory (MB):                  1888.59         1956.12         1907.11
+================================================================================
+================================================================================
+Flow Settings:
+================================================================================
+Total Runtime (h:m:s): 00:48:57
+Total Memory (MB):     1907.11
+Executable Version:    21.10-p002_1
+================================================================================
+Total Cell Area =  Cell Area + Physical Cell Area
+Total Instances =  Leaf Instances + Physical Instances
+
+

@@ -1,0 +1,51 @@
+
+
+Working Directory = /home/redhatacademy19/Documents/Satyam_SRIP/APU RUN
+QoS Summary for mac_apu_coprocessor
+================================================================================
+Metric                          generic         mapped          opt            
+================================================================================
+Slack (ps):                      -555            -237             -73
+  R2R (ps):                      -555            -237             -73
+  I2R (ps):                     1,657           1,467           1,458
+  R2O (ps):                     1,739           1,734           1,734
+  I2O (ps):                     1,577           1,578           1,578
+  CG  (ps):                  no_value        no_value        no_value
+TNS (ps):                     -17,312          -7,362          -2,210
+  R2R (ps):                   -17,312          -7,362          -2,210
+  I2R (ps):                         0               0               0
+  R2O (ps):                         0               0               0
+  I2O (ps):                         0               0               0
+  CG  (ps):                  no_value        no_value        no_value
+Failing Paths:                     32              32              32
+Cell Area:                     46,859          28,744          33,514
+Total Cell Area:               46,859          28,744          33,514
+Leaf Instances:                17,064           9,176          10,016
+Total Instances:               17,064           9,176          10,016
+Utilization (%):                 0.00            0.00            0.00
+Tot. Net Length (um):        no_value        no_value        no_value
+Avg. Net Length (um):        no_value        no_value        no_value
+Route Overflow H (%):        no_value        no_value        no_value
+Route Overflow V (%):        no_value        no_value        no_value
+MBCI(%) (bits/gate) :            0.00            0.00            0.00
+Norm Cong Hotspot Area:
+  Max Cong:                  no_value        no_value        no_value
+  Tot Cong:                  no_value        no_value        no_value
+================================================================================
+CPU  Runtime (h:m:s):        00:35:00        00:31:50        00:39:43
+Real Runtime (h:m:s):        00:35:54        00:31:14        00:39:41
+CPU  Elapsed (h:m:s):        00:35:02        00:36:52        00:46:36
+Real Elapsed (h:m:s):        00:35:55        00:37:10        00:46:50
+Memory (MB):                  1891.86         1948.20         1900.19
+================================================================================
+================================================================================
+Flow Settings:
+================================================================================
+Total Runtime (h:m:s): 00:46:49
+Total Memory (MB):     1900.19
+Executable Version:    21.10-p002_1
+================================================================================
+Total Cell Area =  Cell Area + Physical Cell Area
+Total Instances =  Leaf Instances + Physical Instances
+
+

@@ -1,0 +1,51 @@
+
+
+Working Directory = /home/redhatacademy19/Documents/Satyam_SRIP/NVFP4_RUN
+QoS Summary for nvfp4_mac_top
+================================================================================
+Metric                          generic         mapped         
+================================================================================
+Slack (ps):                      -747            -362
+  R2R (ps):                     1,297           1,278
+  I2R (ps):                      -747            -362
+  R2O (ps):                     1,733           1,693
+  I2O (ps):                  no_value        no_value
+  CG  (ps):                  no_value        no_value
+TNS (ps):                     -23,419         -11,483
+  R2R (ps):                         0               0
+  I2R (ps):                   -23,419         -11,483
+  R2O (ps):                         0               0
+  I2O (ps):                  no_value        no_value
+  CG  (ps):                  no_value        no_value
+Failing Paths:                     32              32
+Cell Area:                     44,997          27,225
+Total Cell Area:               44,997          27,225
+Leaf Instances:                16,758           9,099
+Total Instances:               16,758           9,099
+Utilization (%):                 0.00            0.00
+Tot. Net Length (um):        no_value        no_value
+Avg. Net Length (um):        no_value        no_value
+Route Overflow H (%):        no_value        no_value
+Route Overflow V (%):        no_value        no_value
+MBCI(%) (bits/gate) :            0.00            0.00
+Norm Cong Hotspot Area:
+  Max Cong:                  no_value        no_value
+  Tot Cong:                  no_value        no_value
+================================================================================
+CPU  Runtime (h:m:s):        00:38:22        00:31:59
+Real Runtime (h:m:s):        00:38:44        00:31:22
+CPU  Elapsed (h:m:s):        00:38:25        00:40:23
+Real Elapsed (h:m:s):        00:38:45        00:40:07
+Memory (MB):                  1888.59         1956.12
+================================================================================
+================================================================================
+Flow Settings:
+================================================================================
+Total Runtime (h:m:s): 00:40:06
+Total Memory (MB):     1964.13
+Executable Version:    21.10-p002_1
+================================================================================
+Total Cell Area =  Cell Area + Physical Cell Area
+Total Instances =  Leaf Instances + Physical Instances
+
+
