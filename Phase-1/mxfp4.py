@@ -12,7 +12,9 @@ Format spec (OCP MX Spec v1.0):
   - Quantization: round-to-nearest
 
 E8M0 scale covers the max absolute value in the block:
-  scale = 2^floor(log2(max_abs))  if max_abs > 0 else 1.0
+  scale = 2^ceil(log2(max_abs / E2M1_MAX))  if max_abs > 0 else 1.0
+Note: ceil, not floor. floor would place max_abs/scale in [6,12), saturating
+the largest element of every block against E2M1_MAX.
 
 After scaling, elements are in range [-6, 6] (E2M1 max magnitude),
 and are encoded per e2m1_quantize().
@@ -58,10 +60,10 @@ def _quantize_block(block: np.ndarray):
     if max_abs == 0.0:
         scale = 1.0
     else:
-        # Largest power-of-2 ≤ max_abs, then adjust so max maps within E2M1 range
-        # E2M1 max magnitude is 6.0, so scale = 2^floor(log2(max_abs / E2M1_MAX))
-        # This ensures max_abs / scale ≤ E2M1_MAX
-        raw_exp = np.floor(np.log2(max_abs / E2M1_MAX + 1e-38))
+        # Smallest power-of-2 scale such that max_abs / scale <= E2M1_MAX.
+        # ceil is required: floor yields max_abs/scale in [6,12), which
+        # saturates the largest element of every block at E2M1_MAX.
+        raw_exp = np.ceil(np.log2(max_abs / E2M1_MAX + 1e-38))
         scale = float(2.0 ** raw_exp)
         scale = max(scale, 2.0 ** (-127))  # clamp to E8M0 minimum
 

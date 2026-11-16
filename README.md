@@ -1,202 +1,190 @@
 # A Unified Dual-Mode FP4 MAC Accelerator for LLM Inference on RISC-V Processors
 
-> A unified MAC datapath supporting both MXFP4 (OCP Microscaling) and NVFP4 (NVIDIA FP4) formats with RISC-V co-processor integration.
+> A unified MAC datapath supporting both MXFP4 (OCP Microscaling) and NVFP4 (NVIDIA FP4) in a single datapath, with RISC-V co-processor integration.
 
 ---
 
 ## Overview
 
-Large Language Models (LLMs) demand extreme weight compression for edge deployment. Two competing 4-bit floating-point standards — **MXFP4** and **NVFP4** — offer 7–8× compression over FP32 but use fundamentally different block-scaling mechanisms. Supporting both naively requires two separate MAC datapaths, roughly doubling area and power.
+Large Language Models demand extreme weight compression for edge deployment. Two competing 4-bit floating-point standards — **MXFP4** and **NVFP4** — each offer 7–8× compression over FP32, but use different block-scaling mechanisms. Neither dominates: they are the two endpoints of a narrow accuracy–footprint frontier, and a device does not choose the format of the checkpoint it is handed.
 
-This project presents a **unified dual-mode MAC unit** that handles both formats in a single datapath by exploiting their shared E2M1 weight representation and FP32 arithmetic back-end. A one-bit `FORMAT_MODE` signal switches between formats at runtime with zero reconfiguration overhead.
+This project presents a **unified dual-mode MAC unit** that handles both formats in a single datapath by exploiting their shared E2M1 weight representation and FP32 arithmetic back-end. A one-bit `FORMAT_MODE` signal selects the active scale path at runtime, with no reconfiguration, pipeline flush, or state reset.
 
-### Key Results (45 nm, FreePDK, 500 MHz)
+### Key results (45 nm GPDK045, Cadence Genus, 400 MHz)
 
-| Metric | Unified MAC | Two Separate MACs | Savings |
-|--------|-------------|-------------------|---------|
-| Cell Area | 30,430 | 44,319 | **31%** |
-| Total Power | 19.8 mW | 44.9 mW | **56%** |
-| vs. NVFP4-only | +2% area | — | Near-zero cost for MXFP4 support |
+| Result | Measurement |
+|---|---|
+| Cost of adding MXFP4 support to an NVFP4-capable MAC | **0.88%** of cell area (41 cells) — below the flow's own 0.90% run-to-run variation |
+| Unified vs. standalone NVFP4-only | +1.78% cell area |
+| E8M0 scale decoder | 3 standard cells (identical across three independent syntheses) |
+| Scale-multiplier reduction, MXFP4 vs NVFP4 mode | **14.9×** |
+| Area asymmetry, dedicated MXFP4 vs NVFP4 MAC | 2.6× |
+| Per-mode power on identical silicon (SAIF-annotated) | NVFP4 costs **9.6% more** (15.845 mW vs 14.459 mW) |
+| Speedup over soft-float FP4 on the same PicoRV32 | **40.2×** (76.0 vs 3,055.6 cycles/element-pair) |
+| Kernel code size | 3,540 → **162 bytes** (21.9×) |
+| Adapter agreement, PCPI vs APU | 0.16% |
+
+**The mechanism.** MXFP4's E8M0 block scale is a power of two, so its FP32 mantissa is identically zero, and the 16-entry E2M1 LUT emits only two mantissa patterns. Synthesis therefore eliminates nearly the entire 24×24 partial-product array in the scale multipliers. This single effect — *mantissa collapse* — explains the area asymmetry, the per-mode power difference, and the per-instance toggle counts (7.03 M vs 8.20 M, +16.6%).
+
+---
+
+## Accuracy
+
+WikiText-2 perplexity on TinyLlama-1.1B, all 2-D weight tensors quantized:
+
+| Configuration | Perplexity | Compression |
+|---|---|---|
+| FP32 baseline | 10.43 | 1.0× |
+| All-NVFP4 | 11.03 | 7.11× |
+| NVFP4 attention + `down_proj` | 11.23 | 7.35× |
+| NVFP4 `down_proj` only | **11.32** | **7.43×** |
+| NVFP4 attention / MXFP4 FFN | 11.33 | 7.40× |
+| All-MXFP4 | 11.54 | 7.53× |
+
+Both formats are usable. The full span costs 4.6% accuracy across a 5.9% footprint range — which is precisely why selecting at runtime is worth silicon.
+
+**Layer-wise sensitivity.** Each of the 154 linear projections was switched NVFP4→MXFP4 in isolation. No single layer is a cliff: the largest degradation is +0.066 perplexity, the mean is +0.0027, against a measured resolution limit of ±0.015. Sensitivity concentrates in `down_proj`, not in attention — which is why keeping NVFP4 for `down_proj` alone beats the conventional attention/FFN split on *both* axes.
+
+**Weight reconstruction RMSE.** NVFP4's 16-element FP8 block scale yields 1.24× lower error than MXFP4's 32-element power-of-two scale. The ratio holds to within 1% (1.238–1.248×) across six architectures from 1.1 B to 7.6 B parameters, while the absolute error varies more than tenfold — indicating the gap follows from the scaling scheme itself, not from any model's weight distribution.
+
+---
+
+## ASIC synthesis
+
+Cadence Genus 21.10-p002_1, GPDK045 45 nm (`gsclib045`), `fast_vdd1v2` corner, 400 MHz (2.5 ns), hierarchy preserved (`auto_ungroup none`). All five configurations close timing with zero failing paths.
+
+| Design | Cell area | MAC core | Adapter | Timing |
+|---|---:|---:|---:|:--:|
+| MXFP4-only | 9,342 | — | — | met |
+| NVFP4-only | 24,585 | — | — | met |
+| **Unified** | **25,022** | — | — | met |
+| Unified + PCPI | 21,450 | 19,970 | 1,480 | met |
+| Unified + APU | 21,748 | 20,270 | 1,478 | met |
+
+The MAC core is smaller when instantiated than when synthesized standalone because a synthesis top must drive default external loads on every port and cannot prune logic reachable from its primary inputs, whereas the instantiated core drives known adapter registers with several control inputs tied by the decode logic. Elaboration confirms identical logic in both cases. The Unified vs. NVFP4-only comparison is unaffected: both are standalone builds.
+
+> **Note on `Genus Reports/`.** The committed reports are from an earlier auto-ungrouped flow and do not reproduce the table above, which comes from a hierarchy-preserved run. Those reports are being added.
+
+### Per-mode power (SAIF-annotated, 10,000 vectors)
+
+| Component | MXFP4 mode | NVFP4 mode |
+|---|---|---|
+| Leakage | 15.328 µW | 15.222 µW |
+| Internal | 6.372 mW | 6.914 mW |
+| Switching | 8.072 mW | 8.916 mW |
+| **Total** | **14.459 mW** | **15.845 mW** |
+
+The difference is localized entirely to the multipliers; the scale decoders register identical toggle counts in both modes. Reduced mantissa activity in the *shared* multipliers, not gating of an idle scale path, is what lowers MXFP4 power.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Unified MAC Datapath                      │
-│                                                             │
-│  ┌──────────┐    ┌────────────┐                             │
-│  │  Nibble   │───▶│  E2M1 LUT  │──┐                         │
-│  │ Extractor │    │  Decoder×2 │  │                         │
-│  └──────────┘    └────────────┘  │                         │
-│       (Shared)       (Shared)     │                         │
-│                                   ▼                         │
-│  ┌──────────────────────────────────────┐                   │
-│  │       Parallel Scale Decoding        │                   │
-│  │  ┌─────────┐    ┌──────────────┐     │                   │
-│  │  │  E8M0   │    │ FP8 E4M3    │     │                   │
-│  │  │ Decoder │    │ Decoder +   │     │                   │
-│  │  │(0 gates)│    │ FP32 × Tscl │     │                   │
-│  │  └────┬────┘    └──────┬──────┘     │                   │
-│  │       │    ┌──────┐    │            │                   │
-│  │       └───▶│ MUX  │◀───┘            │                   │
-│  │            │(MODE)│                 │                   │
-│  │            └──┬───┘                 │                   │
-│  └───────────────┼─────────────────────┘                   │
-│                  ▼                                          │
-│  ┌──────────────────────────────┐                           │
-│  │  FP32 Scale × Dot Product   │  (4 multipliers, shared)  │
-│  │  FP32 Accumulator + Adder   │                           │
-│  └──────────────────────────────┘                           │
-└─────────────────────────────────────────────────────────────┘
+            packed_byte                 scale_code_a   scale_code_b  tensor_scale
+                 │                            │             │             │
+          ┌──────▼──────┐              ┌──────▼─────┐  ┌────▼─────┐      │
+          │   u_nib     │              │  u_e8m0    │  │  u_fp8   │      │
+          │  (nibble)   │              │  E8M0 →    │  │ FP8 E4M3 │      │
+          └──┬───────┬──┘              │ {0,code,0} │  │  decoder │      │
+             │       │                 │  0 gates   │  └────┬─────┘      │
+        ┌────▼──┐ ┌──▼────┐            └──────┬─────┘       │            │
+        │u_dec0 │ │u_dec1 │                   │        ┌────▼────────────▼──┐
+        │ E2M1  │ │ E2M1  │                   │        │      u_eff         │
+        └────┬──┘ └──┬────┘                   │        │  FP32 multiply     │
+             │       │                        │        └─────────┬──────────┘
+             │       │                        └──────┐  ┌────────┘
+             │       │                            ┌──▼──▼──┐
+             │       │                            │  MUX   │◀── FORMAT_MODE
+             │       │                            └───┬────┘
+             │       │                      eff_scale │
+          ┌──▼───────▼──┐                             │
+          │  u_smul0/1  │◀────────────────────────────┘
+          └──┬───────┬──┘
+             │       │        b_elem_0 / b_elem_1
+          ┌──▼───────▼──┐
+          │  u_dmul0/1  │
+          └──┬───────┬──┘
+          ┌──▼───────▼──┐    ┌──────────┐    ┌─────────────┐
+          │   u_add01   │───▶│ u_accadd │───▶│ accum_out   │
+          └─────────────┘    └────▲─────┘    └──────┬──────┘
+                                  └─────────────────┘
 ```
 
-The design is integrated into two RISC-V cores via co-processor interfaces:
-- **PicoRV32** — via Pico Co-Processor Interface (PCPI)
-- **CV32E40P** — via Auxiliary Processing Unit (APU)
+Of the 14 blocks in the datapath, 12 are shared. Only two are format-specific: the E8M0 decoder (zero cells — pure wire routing) and the FP8 E4M3 decoder feeding `u_eff`. The datapath is combinational; `accum_out` is the only register.
+
+Integrated into two RISC-V cores:
+- **PicoRV32** — via the Pico Co-Processor Interface (PCPI), custom-0 opcode `0x0B`
+- **CV32E40P** — via the Auxiliary Processing Unit (APU), OP-FP opcode `0x53`
+
+Both use a two-instruction protocol: `QMAC_CFG` (packs format mode, E2M1 byte and scale codes; resets the accumulator) and `QMAC_EXEC` (passes two FP32 activations, triggers the MAC, returns the running sum).
 
 ---
 
-## Repository Structure
+## Repository structure
 
 ```
 .
-├── rtl/                        # Verilog/SystemVerilog RTL source
-│   ├── common/                 # Shared arithmetic blocks
-│   │   ├── nibble_extractor.v
-│   │   ├── e2m1_decoder.v      # 16-entry LUT: 4-bit → FP32
-│   │   ├── fp32_mul.v          # IEEE-754 FP32 multiplier
-│   │   └── fp32_add.v          # IEEE-754 FP32 adder
-│   ├── mxfp4/                  # MXFP4-specific modules
-│   │   ├── e8m0_decoder.v      # E8M0 scale decoder (zero gates)
-│   │   └── mxfp4_mac_top.v     # Standalone MXFP4 MAC
-│   ├── nvfp4/                  # NVFP4-specific modules
-│   │   ├── fp8_e4m3_decoder.v  # FP8 E4M3 block-scale decoder
-│   │   └── nvfp4_mac_top.v     # Standalone NVFP4 MAC
-│   ├── unified/
-│   │   └── unified_mac_top.v   # ★ Unified dual-mode MAC
-│   ├── pcpi/                   # PicoRV32 PCPI integration
-│   │   ├── mac_pcpi_coprocessor.v
-│   │   ├── soc_pcpi_top.v      # PicoRV32 SoC wrapper
-│   │   ├── soc_pcpi_tb.sv      # SoC testbench
-│   │   ├── firmware_pcpi.c     # Test firmware (C source)
-│   │   └── firmware_pcpi.hex   # Compiled firmware
-│   ├── apu/                    # CV32E40P APU integration
-│   │   ├── mac_apu_coprocessor.sv
-│   │   ├── soc_apu_top.sv      # CV32E40P SoC wrapper
-│   │   ├── soc_apu_tb.sv       # SoC testbench
-│   │   └── firmware_apu.hex    # Compiled firmware
-│   ├── tb/                     # Unit-level testbenches
-│   │   ├── mxfp4_mac_tb.sv
-│   │   ├── nvfp4_mac_tb.sv
-│   │   ├── unified_mac_tb.sv
-│   │   ├── accuracy_tb.sv      # Comprehensive accuracy verification
-│   │   ├── gen_test_vectors.py  # Python vector generators
-│   │   ├── gen_unified_vectors.py
-│   │   └── gen_accuracy_vectors.py
-│   ├── synth/                  # ASIC synthesis scripts
-│   │   ├── genus_mxfp4.tcl
-│   │   ├── genus_nvfp4.tcl
-│   │   ├── genus_unified.tcl
-│   │   ├── genus_pcpi.tcl
-│   │   ├── genus_apu.tcl
-│   │   ├── mac_unit.sdc        # Timing constraints (500 MHz)
-│   │   └── run_all_genus.sh    # Batch synthesis runner
-│   └── wrapper/                # Top-level wrappers
-│
-├── Phase-1/                    # Python FP4 quantization library
-│   ├── fp_utils.py             # IEEE-754 FP32 utilities
-│   ├── mxfp4.py                # MXFP4 quantizer (E2M1 + E8M0)
-│   ├── nvfp4.py                # NVFP4 quantizer (E2M1 + FP8×tensor)
-│   └── test_quantizers.py      # Unit tests
-│
-├── Phase-2/                    # C GEMM benchmarks
-│   ├── bench_gemm.c            # Matrix multiply benchmark
-│   ├── gemm_mxfp4.h            # MXFP4 GEMM kernel
-│   ├── gemm_nvfp4.h            # NVFP4 GEMM kernel
-│   └── quant_types.h           # Quantization type definitions
-│
-├── Phase-3/                    # LLM weight analysis
-│   ├── step1_inspect_model.py  # Model weight distribution analysis
-│   └── step2_quantize_weights.py  # Weight quantization + RMSE
-│
-├── Phase-4/                    # Perplexity evaluation
-│   └── phase4_perplexity.py    # WikiText-2 perplexity measurement
-│
-├── Phase-5/                    # Hardware-accurate emulation
-│   ├── phase5_hw_emulated_perplexity.py   # Bit-exact HW emulator
-│   ├── phase5_unified_perplexity.py       # Unified MAC emulation
-│   └── phase5_ri5cy_apu_perplexity.py     # RI5CY APU emulation
-│
-├── Genus Reports/              # ASIC synthesis reports
-│   ├── MXFP4_Output/
-│   ├── NVFP4_Output/
-│   ├── Unified_Output/
-│   ├── PCPI_OUTPUT/
-│   ├── Apu_Output/
-│   └── Wrapper_Output/
-│
-├── Results/                    # RMSE bar charts (6 LLMs)
-│
-├── paper/                      # ASP-DAC 2027 manuscript
-│   ├── aspdac_paper.tex
-│   └── refs.bib
-│
-└── README.md
+├── rtl/
+│   ├── common/          nibble_extractor, e2m1_decoder, fp32_mul, fp32_add
+│   ├── mxfp4/           e8m0_decoder, mxfp4_mac_top
+│   ├── nvfp4/           fp8_e4m3_decoder, nvfp4_mac_top
+│   ├── unified/         unified_mac_top.v          ★ the unified dual-mode MAC
+│   ├── pcpi/            PicoRV32 integration + SoC testbench + firmware
+│   ├── apu/             CV32E40P integration + SoC testbench + firmware
+│   ├── tb/              unit testbenches and Python vector generators
+│   ├── synth/           Genus scripts and SDC constraints
+│   └── wrapper/         top-level wrappers
+├── Phase-1/             Python FP4 quantization library (mxfp4.py, nvfp4.py)
+├── Phase-2/             C GEMM benchmarks
+├── Phase-3/             LLM weight analysis and RMSE
+├── Phase-4/             WikiText-2 perplexity
+├── Phase-5/             hardware-accurate Python emulation of the RTL datapath
+├── Genus Reports/       synthesis reports (see note above)
+└── Results/             RMSE charts across six models
 ```
 
 ---
 
-## FP4 Format Comparison
+## Format comparison
 
 | Property | MXFP4 (OCP MX) | NVFP4 (NVIDIA) |
-|----------|-----------------|----------------|
+|---|---|---|
 | Weight encoding | E2M1 (4-bit) | E2M1 (4-bit) |
-| Block scale format | E8M0 (8-bit) | FP8 E4M3 (8-bit) |
+| Block scale | E8M0 (8-bit, exponent-only) | FP8 E4M3 (8-bit) |
 | Block size | 32 elements | 16 elements |
-| Tensor scale | None | FP32 |
+| Tensor scale | None | FP32, per tensor |
 | Scale decode logic | Zero gates (wire routing) | FP8 decoder + FP32 multiplier |
-| WikiText-2 PPL (TinyLlama) | 100.6 ❌ | 11.07 ✅ |
-
-**Mixed-precision strategy:** NVFP4 for attention layers + MXFP4 for FFN layers → **PPL 15.36** at 7.4× compression.
+| WikiText-2 PPL (TinyLlama-1.1B) | 11.54 | 11.03 |
+| Compression | 7.53× | 7.11× |
 
 ---
 
-## Getting Started
+## Getting started
 
-### Prerequisites
+**Prerequisites.** Xilinx Vivado 2022.2+ for behavioral simulation; Cadence Genus 21.10 with GPDK045 for synthesis; Python 3.8+ with `torch`, `transformers`, `datasets` for the quantization and perplexity work.
 
-- **RTL Simulation:** [Xilinx Vivado](https://www.xilinx.com/products/design-tools/vivado.html) 2022.2+ (behavioral simulation)
-- **ASIC Synthesis:** [Cadence Genus](https://www.cadence.com/) 21.14 + FreePDK 45 nm library
-- **Python Emulation:** Python 3.8+ with `torch`, `transformers`, `datasets`
+### RTL simulation
 
-### Running RTL Simulations
-
-**Unit-level MAC testbench:**
 ```bash
-# In Vivado Tcl console or command line
 cd rtl/tb/
-
-# Generate test vectors
 python gen_unified_vectors.py
-
-# Run simulation (Vivado)
 xvlog --sv unified_mac_tb.sv ../unified/unified_mac_top.v ../common/*.v ../mxfp4/*.v ../nvfp4/*.v
 xelab unified_mac_tb -debug all
 xsim unified_mac_tb -runall
 ```
 
-**SoC-level simulation (PicoRV32 + PCPI):**
+SoC-level, PicoRV32 + PCPI:
+
 ```bash
 cd rtl/pcpi/
-# Simulate in Vivado — loads firmware_pcpi.hex automatically
 xvlog --sv soc_pcpi_tb.sv soc_pcpi_top.v mac_pcpi_coprocessor.v ../unified/*.v ../common/*.v ../mxfp4/*.v ../nvfp4/*.v
 xelab soc_pcpi_tb -debug all
 xsim soc_pcpi_tb -runall
 ```
 
-**SoC-level simulation (CV32E40P + APU):**
+SoC-level, CV32E40P + APU:
+
 ```bash
 cd rtl/apu/
 xvlog --sv soc_apu_tb.sv soc_apu_top.sv mac_apu_coprocessor.sv ../unified/*.v ../common/*.v ../mxfp4/*.v ../nvfp4/*.v
@@ -204,104 +192,25 @@ xelab soc_apu_tb -debug all
 xsim soc_apu_tb -runall
 ```
 
-### Running ASIC Synthesis
+### ASIC synthesis
 
 ```bash
 cd rtl/synth/
-
-# Synthesize all configurations
-bash run_all_genus.sh
-
-# Or run individually
-genus -files genus_unified.tcl    # Unified MAC
-genus -files genus_pcpi.tcl       # Unified + PicoRV32 PCPI
-genus -files genus_apu.tcl        # Unified + CV32E40P APU
+bash run_all_genus.sh          # all five configurations
+genus -files genus_unified.tcl # or individually
 ```
 
-### Running Perplexity Evaluation
+### Perplexity evaluation
 
 ```bash
-# Phase 5: Hardware-accurate perplexity (bit-exact RTL emulation)
 cd Phase-5/
 python phase5_hw_emulated_perplexity.py
 ```
 
-This emulates the exact RTL datapath in Python, quantizing weights through the same decode pipeline as the Verilog modules, and measures WikiText-2 perplexity on TinyLlama-1.1B.
+Perplexity is measured through a Python emulation of the RTL datapath, since 16 KB of on-chip SRAM cannot hold TinyLlama-1.1B's weights. The emulated datapath was validated against RTL simulation over 100 randomized vectors spanning both formats, with bit-exact agreement in the FP32 accumulator output.
 
 ---
-
-## ASIC Synthesis Results
-
-**Technology:** FreePDK 45 nm | **Target Clock:** 500 MHz (2.0 ns period)
-
-| Configuration | Cell Area | Total Power (mW) | Timing Met |
-|--------------|-----------|-------------------|------------|
-| MXFP4 MAC (standalone) | 13,278 | 7.3 | ✅ |
-| NVFP4 MAC (standalone) | 31,041 | 37.6 | ✅ |
-| **Unified MAC** | **30,430** | **19.8** | ✅ |
-| Unified + PCPI adapter | 33,488 | 21.8 | ✅ |
-| Unified + APU adapter | 33,610 | 22.1 | ✅ |
-
----
-
-## Perplexity Results (TinyLlama-1.1B, WikiText-2)
-
-| Quantization Strategy | Perplexity | vs. FP32 Baseline |
-|----------------------|------------|-------------------|
-| FP32 (baseline) | 10.43 | — |
-| All-NVFP4 | 11.07 | +6.1% |
-| Mixed (NVFP4 attn + MXFP4 FFN) | 15.36 | +47.3% |
-| All-MXFP4 | 100.60 | ❌ Unusable |
-
----
-
-## RISC-V Integration
-
-The unified MAC connects to RISC-V cores through a **two-instruction protocol**:
-
-| Instruction | PCPI (PicoRV32) | APU (CV32E40P) | Function |
-|-------------|-----------------|----------------|----------|
-| **LOAD** | `custom0` funct3=0 | `fadd.s` (OP-FP) | Load weights, scales, activations, mode |
-| **EXEC** | `custom0` funct3=1 | `fmul.s` (OP-FP) | Trigger MAC, return accumulated result |
-
-- **PicoRV32:** 975 ns test completion (single-issue, serialized)
-- **CV32E40P:** 415 ns test completion (4-stage pipeline, 2.3× faster)
-
----
-
-## Project Phases
-
-| Phase | Description | Key Output |
-|-------|-------------|------------|
-| **Phase 1** | Python FP4 quantization library | `mxfp4.py`, `nvfp4.py` — bit-exact quantizers |
-| **Phase 2** | C GEMM benchmarks | Performance comparison of FP4 matrix multiply |
-| **Phase 3** | LLM weight analysis | RMSE measurements across 6 models (1.1B–7.6B params) |
-| **Phase 4** | Perplexity evaluation | WikiText-2 perplexity with format-aware quantization |
-| **Phase 5** | Hardware-accurate emulation | Bit-exact RTL datapath emulation in Python |
-
----
-<!--
-## Citation
-
-If you use this work, please cite:
-
-```bibtex
-@inproceedings{fp4mac2027,
-  title={A Unified Dual-Mode {FP4} {MAC} Accelerator for {LLM} Inference on {RISC-V} Processors},
-  booktitle={Proceedings of the 32nd Asia and South Pacific Design Automation Conference (ASP-DAC)},
-  year={2027}
-}
-```
-
----
-
-## License
-
-This project is released for academic and research use. See individual source files for details.
-
----
--->
 
 ## Acknowledgments
 
-This work was conducted as part of a Summer Research Internship Program (SRIP). The PicoRV32 core is by [Claire Wolf / YosysHQ](https://github.com/YosysHQ/picorv32). The CV32E40P core is by [OpenHW Group](https://github.com/openhwgroup/cv32e40p).
+Conducted as part of a Summer Research Internship Program (SRIP). The PicoRV32 core is by [Claire Wolf / YosysHQ](https://github.com/YosysHQ/picorv32); the CV32E40P core is by the [OpenHW Group](https://github.com/openhwgroup/cv32e40p).
